@@ -8,18 +8,27 @@ import TurnModal from './components/TurnModal.vue'
 import DiceRoller from './components/DiceRoller.vue'
 import MusicPlayer from './components/MusicPlayer.vue'
 import ToastHost from './components/ToastHost.vue'
-import { gameState, me, isMyTurn, endTurn, endTurnAuto, showToast } from './store'
+import { gameState, me, isMyTurn, endTurn, showToast } from './store'
 import { OUTCOME_LABELS, CRITICAL_LABELS } from './game/logic'
 import type { Outcome } from './types'
 
 const showTurnModal = ref(false)
 const showNamePrompt = ref(false)
+const extendMode = ref(false)
 
 // dice display
 const diceTrigger = ref(0)
 const diceValues = ref({ d1: 1, d2: 1 })
 const showDice = ref(false)
 const lastRoll = ref<{ outcome: Outcome; total: number; modifier: number; critical: string | null } | null>(null)
+
+function startExtendMode() {
+  extendMode.value = true
+}
+
+function endExtendMode() {
+  extendMode.value = false
+}
 
 // outcome tint
 const outcomeTint = ref<'success' | 'mixed' | 'failure' | null>(null)
@@ -52,6 +61,8 @@ watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
     diceValues.value = { d1: lastRollResult.d1, d2: lastRollResult.d2 }
     diceTrigger.value++
     showDice.value = true
+    // Exit extend mode when a new roll happens so dice can show
+    extendMode.value = false
 
     setTimeout(() => {
       lastRoll.value = {
@@ -68,22 +79,8 @@ watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
         : `${OUTCOME_LABELS[lastRollResult.outcome]} (Wurf: ${lastRollResult.total})`
       showToast(msg, lastRollResult.outcome === 'success' ? 'success' : lastRollResult.outcome === 'failure' ? 'failure' : 'info')
 
-      // Auto-end on failure
-      if (lastRollResult.outcome === 'failure') {
-        window.setTimeout(() => {
-          const result = endTurnAuto()
-          if (result) {
-            showHopeGained.value = { amount: result.hopeGained, outcome: result.outcome ?? 'failure' }
-            setTimeout(() => { showHopeGained.value = null }, 3000)
-          }
-          // reset tint after 4 seconds
-          window.setTimeout(() => {
-            outcomeTint.value = null
-            lastRoll.value = null
-            showDice.value = false
-          }, 4000)
-        }, 1500)
-      }
+      // Show end turn button for all outcomes including failure
+      // No auto-end on failure - user must click "Zug beenden"
     }, 1400)
   }
 })
@@ -124,13 +121,13 @@ function closeNamePrompt() {
         <PlayerBar @open-turn-modal="showTurnModal = true" />
 
         <div class="board-area">
-          <HexBoard :outcome-tint="outcomeTint" />
+          <HexBoard :outcome-tint="outcomeTint" :extend-mode="extendMode" @extend="startExtendMode" @end-extend="endExtendMode" />
 
           <MusicPlayer />
 
           <!-- Dice overlay -->
           <transition name="fade">
-            <div v-if="showDice" class="dice-overlay">
+            <div v-if="showDice && !extendMode" class="dice-overlay">
               <DiceRoller
                 :d1="diceValues.d1"
                 :d2="diceValues.d2"
@@ -156,10 +153,13 @@ function closeNamePrompt() {
             </div>
           </transition>
 
-          <!-- End turn button (only for active player on success/mixed) -->
-          <div v-if="isMyTurn && lastRoll && lastRoll.outcome !== 'failure'" class="end-turn-bar">
-            <button class="primary end-turn-btn" @click="onEndTurn">Zug beenden</button>
-            <p class="end-turn-hint">Oder bewege deine Figur auf ein Nachbarfeld um weiterzuwürfeln</p>
+          <!-- End turn button (only for active player, shown for all outcomes) -->
+          <div v-if="isMyTurn && lastRoll" class="end-turn-bar">
+            <div class="end-turn-btns">
+              <button class="primary end-turn-btn" @click="onEndTurn">Zug beenden</button>
+              <button v-if="lastRoll.outcome !== 'failure'" class="secondary extend-btn" @click="startExtendMode">Zug erweitern</button>
+            </div>
+            <p v-if="lastRoll.outcome !== 'failure' && !extendMode" class="end-turn-hint">Oder bewege deine Figur auf ein Nachbarfeld um weiterzuwürfeln</p>
           </div>
         </div>
       </div>
@@ -282,10 +282,18 @@ function closeNamePrompt() {
   z-index: 40;
   animation: fadeIn 0.3s ease;
 }
+.end-turn-btns {
+  display: flex;
+  gap: 0.75rem;
+}
 .end-turn-btn {
   font-size: 1.05rem;
   padding: 0.7em 2.5em;
   box-shadow: 0 4px 20px rgba(212, 166, 74, 0.3);
+}
+.extend-btn {
+  font-size: 1.05rem;
+  padding: 0.7em 2.5em;
 }
 .end-turn-hint {
   color: var(--text-dim);

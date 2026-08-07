@@ -12,11 +12,18 @@ import type { HexId, Hex } from '../types'
 
 const props = defineProps<{
   outcomeTint: 'success' | 'mixed' | 'failure' | null
+  extendMode: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'extend'): void
+  (e: 'end-extend'): void
 }>()
 
 const svgRef = ref<SVGSVGElement | null>(null)
 const selectedHex = ref<HexId | null>(null)
 const swapTarget = ref<HexId | null>(null)
+const pendingRollTarget = ref<HexId | null>(null)
 
 const drag = reactive({
   active: false,
@@ -82,7 +89,8 @@ function onPointerUp(e: PointerEvent) {
       if (currentPos) {
         const currentHex = gameState.hexes[currentPos]
         if (currentHex && areNeighbors(currentHex, targetHex) && !currentChain.includes(targetHex.id)) {
-          rollForHex(targetHex.id)
+          // Set pending roll target - figure will be shown at target position
+          pendingRollTarget.value = targetHex.id
         }
       }
     } else if (gameState.turn.phase !== 'active') {
@@ -93,6 +101,18 @@ function onPointerUp(e: PointerEvent) {
   drag.active = false
   drag.playerId = null
   drag.hexId = null
+}
+
+function confirmRoll() {
+  if (pendingRollTarget.value) {
+    rollForHex(pendingRollTarget.value)
+    pendingRollTarget.value = null
+    emit('end-extend')
+  }
+}
+
+function cancelRoll() {
+  pendingRollTarget.value = null
 }
 
 function findHexAtPoint(x: number, y: number): Hex | null {
@@ -189,8 +209,19 @@ const specialHexIds = computed<Set<HexId>>(() => {
   const special = new Set<HexId>()
   if (selectedHex.value) special.add(selectedHex.value)
   if (swapTarget.value) special.add(swapTarget.value)
-  chainSet.value.forEach(id => special.add(id))
-  validMoveTargets.value.forEach(id => special.add(id))
+  if (pendingRollTarget.value) special.add(pendingRollTarget.value)
+  // Always highlight player's current position
+  if (myPlayer.value?.position) {
+    special.add(myPlayer.value.position)
+  }
+  // Highlight chain hexes only when not in pending roll state
+  if (!pendingRollTarget.value) {
+    chainSet.value.forEach(id => special.add(id))
+  }
+  // Only highlight neighbors in extend mode when not in pending roll state
+  if (props.extendMode && !pendingRollTarget.value) {
+    validMoveTargets.value.forEach(id => special.add(id))
+  }
   return special
 })
 
@@ -201,8 +232,13 @@ const figureLayout = computed(() => {
   for (const player of playerList.value) {
     if (!player.position) continue
     if (drag.active && drag.playerId === player.id) continue
-    if (!map.has(player.position)) map.set(player.position, [])
-    map.get(player.position)!.push({ id: player.id, color: player.color, name: player.name, x: 0, y: 0, r: FIGURE_RADIUS })
+    // Use pending roll target position if set for the active player
+    const displayPosition = (isMyTurn.value && player.id === myPlayer.value?.id && pendingRollTarget.value)
+      ? pendingRollTarget.value
+      : player.position
+    if (!displayPosition) continue
+    if (!map.has(displayPosition)) map.set(displayPosition, [])
+    map.get(displayPosition)!.push({ id: player.id, color: player.color, name: player.name, x: 0, y: 0, r: FIGURE_RADIUS })
   }
   for (const [hexId, group] of map) {
     const hex = gameState.hexes[hexId]
@@ -493,6 +529,15 @@ onUnmounted(() => {
     <div v-if="swapTarget" class="swap-hint">
       Wähle ein zweites Feld zum Tauschen der Hitze mit {{ swapTarget }}
     </div>
+
+    <!-- Roll confirmation -->
+    <div v-if="pendingRollTarget && isMyTurn" class="roll-confirm-bar">
+      <p class="roll-confirm-text">Feld {{ pendingRollTarget }} ausgewählt. bereit zum Würfeln.</p>
+      <div class="roll-confirm-btns">
+        <button class="btn secondary" @click="cancelRoll">Abbrechen</button>
+        <button class="btn primary" @click="confirmRoll">Würfeln</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -682,5 +727,30 @@ polygon.chain-hex {
   color: var(--accent);
   animation: fadeIn 0.2s ease;
   z-index: 10;
+}
+.roll-confirm-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 50;
+  animation: fadeIn 0.2s ease;
+}
+.roll-confirm-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.roll-confirm-btns {
+  display: flex;
+  gap: 0.75rem;
 }
 </style>
