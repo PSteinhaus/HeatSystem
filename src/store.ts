@@ -261,7 +261,7 @@ export function endTurn(): { hopeGained: number; outcome: Outcome | null } | nul
   if (!isMyTurn.value || !me.id) return null
   const turn = gameState.turn
   const lastOutcome = turn.rolls.length > 0 ? turn.rolls[turn.rolls.length - 1].outcome : null
-  const chainHeatSum = turn.chain.reduce((sum, hexId) => sum + (turn.heatSnapshot[hexId] ?? 0), 0)
+  const chainHeatSum = turn.chain.reduce((sum, hexId) => sum + Math.max(0, turn.heatSnapshot[hexId] ?? 0), 0)
   const hopeGained = lastOutcome ? calculateHopeGained(lastOutcome, chainHeatSum) : 0
 
   mockServer.update((s) => {
