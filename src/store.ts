@@ -154,7 +154,7 @@ export function connectName(name: string): boolean {
 export function setHeat(hexId: HexId, heat: number) {
   if (activeTurn.value) return
   mockServer.update((s) => {
-    if (s.hexes[hexId]) s.hexes[hexId].heat = Math.max(0, Math.min(MAX_HEAT, heat))
+    if (s.hexes[hexId]) s.hexes[hexId].heat = Math.min(MAX_HEAT, Math.max(-MAX_HEAT, heat))
   })
 }
 

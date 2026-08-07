@@ -110,9 +110,18 @@ function findHexAtPoint(x: number, y: number): Hex | null {
 
 function onHexClick(e: MouseEvent, hexId: HexId) {
   if (isMyTurn.value || gameState.turn.phase === 'active') return
-  if (e.shiftKey || e.button === 2) {
-    // right-click / shift-click: decrement heat
-    setHeat(hexId, gameState.hexes[hexId].heat - 1)
+  if (e.ctrlKey) {
+    // Ctrl + left-click: increment heat
+    const currentHeat = gameState.hexes[hexId]?.heat ?? 0
+    if (currentHeat < MAX_HEAT) {
+      setHeat(hexId, currentHeat + 1)
+    }
+  } else if (e.shiftKey) {
+    // shift-click: decrement heat
+    const currentHeat = gameState.hexes[hexId]?.heat ?? 0
+    if (currentHeat > -MAX_HEAT) {
+      setHeat(hexId, currentHeat - 1)
+    }
   } else if (swapTarget.value && swapTarget.value !== hexId) {
     swapHexHeat(swapTarget.value, hexId)
     swapTarget.value = null
@@ -127,17 +136,17 @@ function onHexClick(e: MouseEvent, hexId: HexId) {
   }
 }
 
-function onHexContext(e: MouseEvent, hexId: HexId) {
-  e.preventDefault()
-  if (isMyTurn.value || gameState.turn.phase === 'active') return
-  setHeat(hexId, gameState.hexes[hexId].heat - 1)
-}
-
 function incrementHeat(hexId: HexId) {
-  setHeat(hexId, gameState.hexes[hexId].heat + 1)
+  const currentHeat = gameState.hexes[hexId]?.heat ?? 0
+  if (currentHeat < MAX_HEAT) {
+    setHeat(hexId, currentHeat + 1)
+  }
 }
 function decrementHeat(hexId: HexId) {
-  setHeat(hexId, gameState.hexes[hexId].heat - 1)
+  const currentHeat = gameState.hexes[hexId]?.heat ?? 0
+  if (currentHeat > -MAX_HEAT) {
+    setHeat(hexId, currentHeat - 1)
+  }
 }
 
 function onInscriptionInput(hexId: HexId, e: Event) {
@@ -221,24 +230,52 @@ function hexFill(hexId: HexId): string {
   const hex = gameState.hexes[hexId]
   if (!hex) return '#1a1a26'
   // base color shifts with heat
-  const heatRatio = hex.heat / MAX_HEAT
-  if (heatRatio === 0) return '#1a1a26'
-  // interpolate from dark to warm red
-  const r = Math.round(26 + heatRatio * (140 - 26))
-  const g = Math.round(26 + heatRatio * (40 - 26))
-  const b = Math.round(38 + heatRatio * (50 - 38))
-  return `rgb(${r},${g},${b})`
+  if (hex.heat > 0) {
+    const heatRatio = hex.heat / MAX_HEAT
+    if (heatRatio === 0) return '#1a1a26'
+    // interpolate from dark to warm red
+    const r = Math.round(26 + heatRatio * (140 - 26))
+    const g = Math.round(26 + heatRatio * (40 - 26))
+    const b = Math.round(38 + heatRatio * (50 - 38))
+    return `rgb(${r},${g},${b})`
+  } else if (hex.heat < 0) {
+    // cooling: interpolate from dark to cool blue
+    const coolingRatio = Math.abs(hex.heat) / MAX_HEAT
+    const r = Math.round(26 + coolingRatio * (30 - 26))
+    const g = Math.round(38 + coolingRatio * (70 - 38))
+    const b = Math.round(50 + coolingRatio * (150 - 50))
+    return `rgb(${r},${g},${b})`
+  }
+  return '#1a1a26'
 }
 
 function heatDots(hexId: HexId): { x: number; y: number }[] {
   const hex = gameState.hexes[hexId]
-  if (!hex || hex.heat === 0) return []
+  if (!hex || hex.heat <= 0) return []
   const { x: cx, y: cy } = hexToPixel(hex.q, hex.r)
   const dots: { x: number; y: number }[] = []
   const startY = cy + HEX_SIZE * 0.35
   const spacing = 11
   const totalWidth = (hex.heat - 1) * spacing
   for (let i = 0; i < hex.heat; i++) {
+    dots.push({
+      x: cx - totalWidth / 2 + i * spacing,
+      y: startY,
+    })
+  }
+  return dots
+}
+
+function coolingDots(hexId: HexId): { x: number; y: number }[] {
+  const hex = gameState.hexes[hexId]
+  if (!hex || hex.heat >= 0) return []
+  const { x: cx, y: cy } = hexToPixel(hex.q, hex.r)
+  const dots: { x: number; y: number }[] = []
+  const cooling = Math.abs(hex.heat)
+  const startY = cy + HEX_SIZE * 0.35 + 14
+  const spacing = 11
+  const totalWidth = (cooling - 1) * spacing
+  for (let i = 0; i < cooling; i++) {
     dots.push({
       x: cx - totalWidth / 2 + i * spacing,
       y: startY,
@@ -268,7 +305,6 @@ onUnmounted(() => {
       ref="svgRef"
       :viewBox="viewBox"
       class="hex-svg"
-      @contextmenu.prevent
     >
       <g v-for="hex in hexList" :key="hex.id">
         <polygon
@@ -283,17 +319,27 @@ onUnmounted(() => {
             'valid-target': validMoveTargets.has(hex.id),
           }"
           @click="onHexClick($event, hex.id)"
-          @contextmenu="onHexContext($event, hex.id)"
         />
         <!-- heat dots -->
         <circle
           v-for="(dot, i) in heatDots(hex.id)"
-          :key="i"
+          :key="'heat-' + i"
           :cx="dot.x"
           :cy="dot.y"
           :r="4"
           fill="#ff6b3a"
           stroke="#cc4a20"
+          stroke-width="0.5"
+        />
+        <!-- cooling dots -->
+        <circle
+          v-for="(dot, i) in coolingDots(hex.id)"
+          :key="'cool-' + i"
+          :cx="dot.x"
+          :cy="dot.y"
+          :r="4"
+          fill="#3a8fff"
+          stroke="#206acc"
           stroke-width="0.5"
         />
         <!-- heat number -->
@@ -303,6 +349,14 @@ onUnmounted(() => {
           :y="hexToPixel(hex.q, hex.r).y - HEX_SIZE * 0.2"
           text-anchor="middle"
           class="heat-label"
+        >{{ gameState.hexes[hex.id].heat }}</text>
+        <!-- cooling number -->
+        <text
+          v-if="gameState.hexes[hex.id]?.heat < 0"
+          :x="hexToPixel(hex.q, hex.r).x"
+          :y="hexToPixel(hex.q, hex.r).y - HEX_SIZE * 0.2"
+          text-anchor="middle"
+          class="cooling-label"
         >{{ gameState.hexes[hex.id].heat }}</text>
         <!-- inscription -->
         <text
@@ -357,9 +411,9 @@ onUnmounted(() => {
     <div v-if="selectedHex && gameState.turn.phase !== 'active'" class="hex-panel">
       <div class="hex-panel-title">Feld {{ selectedHex }}</div>
       <div class="hex-panel-row">
-        <span>Hitze: {{ gameState.hexes[selectedHex]?.heat ?? 0 }}</span>
+        <span>{{ gameState.hexes[selectedHex]?.heat > 0 ? 'Hitze' : gameState.hexes[selectedHex]?.heat < 0 ? 'Kühlung' : 'Hitze' }}: {{ gameState.hexes[selectedHex]?.heat ?? 0 }}</span>
         <div class="hex-panel-btns">
-          <button class="mini-btn" @click="decrementHeat(selectedHex)" :disabled="(gameState.hexes[selectedHex]?.heat ?? 0) <= 0">−</button>
+          <button class="mini-btn" @click="decrementHeat(selectedHex)" :disabled="(gameState.hexes[selectedHex]?.heat ?? 0) <= -MAX_HEAT">−</button>
           <button class="mini-btn" @click="incrementHeat(selectedHex)" :disabled="(gameState.hexes[selectedHex]?.heat ?? 0) >= MAX_HEAT">+</button>
         </div>
       </div>
@@ -434,6 +488,13 @@ polygon.chain-hex {
 }
 .heat-label {
   fill: #ffaa88;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+.cooling-label {
+  fill: #88aaff;
   font-size: 13px;
   font-weight: 700;
   pointer-events: none;
