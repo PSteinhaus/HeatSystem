@@ -12,4 +12,4 @@ export const PLAYER_COLORS = [
 export const MAX_HEAT = 5
 export const STARTING_HOPE = 10
 export const DEFAULT_HEX_COUNT = 14
-export const MAX_BONUS = 6
+export const MAX_BONUS = 8

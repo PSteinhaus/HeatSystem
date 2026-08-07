@@ -185,6 +185,15 @@ const validMoveTargets = computed<Set<HexId>>(() => {
 
 const chainSet = computed<Set<HexId>>(() => new Set(gameState.turn.chain))
 
+const specialHexIds = computed<Set<HexId>>(() => {
+  const special = new Set<HexId>()
+  if (selectedHex.value) special.add(selectedHex.value)
+  if (swapTarget.value) special.add(swapTarget.value)
+  chainSet.value.forEach(id => special.add(id))
+  validMoveTargets.value.forEach(id => special.add(id))
+  return special
+})
+
 const FIGURE_RADIUS = 14
 
 const figureLayout = computed(() => {
@@ -306,10 +315,37 @@ onUnmounted(() => {
       :viewBox="viewBox"
       class="hex-svg"
     >
-      <g v-for="hex in hexList" :key="hex.id">
+      <!-- First pass: hex fills (no strokes) -->
+      <g>
         <polygon
+          v-for="hex in hexList"
+          :key="'fill-' + hex.id"
           :points="hexCorners(hexToPixel(hex.q, hex.r).x, hexToPixel(hex.q, hex.r).y)"
           :fill="hexFill(hex.id)"
+          stroke="none"
+          class="hex-fill"
+        />
+      </g>
+      
+      <!-- Second pass: regular hex strokes (all hexes, thin default border) -->
+      <g>
+        <polygon
+          v-for="hex in hexList"
+          :key="'stroke-regular-' + hex.id"
+          :points="hexCorners(hexToPixel(hex.q, hex.r).x, hexToPixel(hex.q, hex.r).y)"
+          fill="transparent"
+          stroke="#33334a"
+          stroke-width="1"
+        />
+      </g>
+      
+      <!-- Third pass: special hex strokes (rendered on top of regular strokes) -->
+      <g>
+        <polygon
+          v-for="hex in hexList.filter(h => specialHexIds.has(h.id))"
+          :key="'stroke-special-' + hex.id"
+          :points="hexCorners(hexToPixel(hex.q, hex.r).x, hexToPixel(hex.q, hex.r).y)"
+          fill="transparent"
           :stroke="selectedHex === hex.id ? 'var(--primary)' : swapTarget === hex.id ? 'var(--accent)' : chainSet.has(hex.id) ? 'var(--primary)' : '#33334a'"
           :stroke-width="selectedHex === hex.id || swapTarget === hex.id || chainSet.has(hex.id) ? 2.5 : 1"
           :class="{
@@ -318,8 +354,24 @@ onUnmounted(() => {
             'chain-hex': chainSet.has(hex.id),
             'valid-target': validMoveTargets.has(hex.id),
           }"
-          @click="onHexClick($event, hex.id)"
         />
+      </g>
+      
+      <!-- Fourth pass: click overlays (on top of all strokes) -->
+      <g>
+        <polygon
+          v-for="hex in hexList"
+          :key="'click-' + hex.id"
+          :points="hexCorners(hexToPixel(hex.q, hex.r).x, hexToPixel(hex.q, hex.r).y)"
+          fill="transparent"
+          stroke="none"
+          @click="onHexClick($event, hex.id)"
+          class="hex-click-overlay"
+        />
+      </g>
+      
+      <!-- Fifth pass: hex content (dots, numbers, inscriptions) -->
+      <g v-for="hex in hexList" :key="'content-' + hex.id">
         <!-- heat dots -->
         <circle
           v-for="(dot, i) in heatDots(hex.id)"
@@ -470,6 +522,13 @@ onUnmounted(() => {
 }
 polygon {
   transition: fill 0.3s, stroke 0.2s, stroke-width 0.2s;
+  cursor: pointer;
+}
+.hex-fill {
+  pointer-events: none;
+}
+.hex-click-overlay {
+  pointer-events: visible;
   cursor: pointer;
 }
 polygon.valid-target {
