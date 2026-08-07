@@ -58,11 +58,17 @@ watch(() => gameState.status, (status) => {
 watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
   if (newLen > (oldLen ?? 0)) {
     const lastRollResult = gameState.turn.rolls[newLen - 1]
+    // Clear previous roll result immediately so old result doesn't show
+    lastRoll.value = null
+    // Set dice values and trigger in correct order for animation
     diceValues.value = { d1: lastRollResult.d1, d2: lastRollResult.d2 }
-    diceTrigger.value++
     showDice.value = true
     // Exit extend mode when a new roll happens so dice can show
     extendMode.value = false
+    // Increment trigger after showing to ensure DiceRoller is mounted
+    setTimeout(() => {
+      diceTrigger.value++
+    }, 10)
 
     setTimeout(() => {
       lastRoll.value = {
