@@ -258,6 +258,9 @@ function closeNamePrompt() {
   z-index: 60;
   pointer-events: none;
   animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 70%);
+  padding: 3rem 4rem;
+  border-radius: 60%;
 }
 .hope-overlay.success { color: var(--primary); }
 .hope-overlay.mixed { color: var(--text); }
@@ -274,7 +277,9 @@ function closeNamePrompt() {
   font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
+  background: radial-gradient(ellipse 100% 85% at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 70%);
+  padding: 1.25rem 2rem;
+  border-radius: 20px;
 }
 .end-turn-bar {
   position: absolute;
