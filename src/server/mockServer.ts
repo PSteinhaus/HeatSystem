@@ -33,6 +33,14 @@ function defaultState(): GameState {
 
 type Listener = (state: GameState) => void
 
+/**
+ * Mock server for multiplayer synchronization.
+ * Synchronizes the complete game state including:
+ * - Board state (hexes, heat values, inscriptions)
+ * - Player positions and hope
+ * - Complete turn flow (phase, active player, rolls, chain, outcomes)
+ * Uses BroadcastChannel for cross-tab communication and localStorage for persistence.
+ */
 class MockServer {
   private state: GameState
   private channel: BroadcastChannel | null

@@ -1,5 +1,5 @@
 import { reactive, computed } from 'vue'
-import type { GameState, HexId, Player, ToastMsg, Outcome, MusicTrackId } from './types'
+import type { GameState, HexId, Player, ToastMsg, Outcome, MusicTrackId, RollResult } from './types'
 import { mockServer } from './server/mockServer'
 import { generateHexes, areNeighbors } from './game/hex'
 import { PLAYER_COLORS, STARTING_HOPE, MAX_HEAT, DEFAULT_HEX_COUNT } from './game/constants'
@@ -32,6 +32,22 @@ export const isMyTurn = computed(() => activeTurn.value && gameState.turn.active
 export const playerList = computed(() => Object.values(gameState.players))
 export const hexList = computed(() => gameState.hexOrder.map((id) => gameState.hexes[id]).filter(Boolean))
 
+// Turn flow synchronization - these allow all players to see the current turn state
+export const activePlayer = computed(() => {
+  const id = gameState.turn.activePlayerId
+  return id ? gameState.players[id] ?? null : null
+})
+export const currentTurnBonus = computed(() => gameState.turn.bonus)
+export const currentChain = computed(() => gameState.turn.chain)
+export const currentRolls = computed(() => gameState.turn.rolls)
+export const turnFinalOutcome = computed(() => gameState.turn.finalOutcome)
+export const turnHeatSnapshot = computed(() => gameState.turn.heatSnapshot)
+
+// Check if a specific player is the active player
+export function isPlayerActive(playerId: string | null): boolean {
+  return activeTurn.value && gameState.turn.activePlayerId === playerId
+}
+
 let toastCounter = 0
 export function showToast(message: string, type: ToastMsg['type'] = 'info') {
   const id = ++toastCounter
@@ -43,29 +59,35 @@ export function showToast(message: string, type: ToastMsg['type'] = 'info') {
 }
 
 function syncState(target: GameState, source: GameState) {
+  // Deep sync game state from source to target
   target.status = source.status
-  for (const key of Object.keys(target.hexes)) {
-    if (!(key in source.hexes)) delete target.hexes[key]
-  }
+  
+  // Sync hexes
+  target.hexes = {}
   for (const [key, val] of Object.entries(source.hexes)) {
-    if (target.hexes[key]) Object.assign(target.hexes[key], val)
-    else target.hexes[key] = { ...val }
+    target.hexes[key] = { ...val }
   }
-  target.hexOrder.splice(0, target.hexOrder.length, ...source.hexOrder)
-  for (const key of Object.keys(target.players)) {
-    if (!(key in source.players)) delete target.players[key]
-  }
+  
+  // Sync hexOrder
+  target.hexOrder = [...source.hexOrder]
+  
+  // Sync players
+  target.players = {}
   for (const [key, val] of Object.entries(source.players)) {
-    if (target.players[key]) Object.assign(target.players[key], val)
-    else target.players[key] = { ...val }
+    target.players[key] = { ...val }
   }
-  target.turn.phase = source.turn.phase
-  target.turn.activePlayerId = source.turn.activePlayerId
-  target.turn.bonus = source.turn.bonus
-  target.turn.finalOutcome = source.turn.finalOutcome
-  target.turn.chain = [...source.turn.chain]
-  target.turn.rolls = [...source.turn.rolls]
-  target.turn.heatSnapshot = { ...source.turn.heatSnapshot }
+  
+  // Sync turn state - this ensures all turn flow data is synchronized
+  target.turn = {
+    phase: source.turn.phase,
+    activePlayerId: source.turn.activePlayerId,
+    bonus: source.turn.bonus,
+    chain: [...source.turn.chain],
+    rolls: [...source.turn.rolls],
+    finalOutcome: source.turn.finalOutcome,
+    heatSnapshot: { ...source.turn.heatSnapshot },
+  }
+  
   target.musicTrack = source.musicTrack
 }
 
@@ -216,28 +238,30 @@ export function beginTurn(bonus: number) {
   })
 }
 
-export function rollForHex(hexId: HexId) {
-  if (!isMyTurn.value || !me.id) return
+export function rollForHex(hexId: HexId): RollResult | null {
+  if (!isMyTurn.value || !me.id) return null
   const player = gameState.players[me.id]
-  if (!player) return
+  if (!player) return null
   const targetHex = gameState.hexes[hexId]
-  if (!targetHex) return
+  if (!targetHex) return null
 
   const currentPos = gameState.turn.chain.length > 0
     ? gameState.turn.chain[gameState.turn.chain.length - 1]
     : player.position
-  if (!currentPos) return
+  if (!currentPos) return null
   const currentHex = gameState.hexes[currentPos]
-  if (!currentHex || !areNeighbors(currentHex, targetHex)) return
-  if (gameState.turn.chain.includes(hexId)) return
+  if (!currentHex || !areNeighbors(currentHex, targetHex)) return null
+  if (gameState.turn.chain.includes(hexId)) return null
 
   const isContinuation = gameState.turn.rolls.length > 0
   const cost = bonusCost(gameState.turn.bonus)
   if (isContinuation && player.hope < cost) {
     showToast('Nicht genug Hoffnung, um den Bonus erneut zu zahlen.', 'failure')
-    return
+    return null
   }
 
+  // Generate dice values - only the active player does this, and it will be
+  // synchronized to all other players via the mockServer update
   const d1 = Math.floor(Math.random() * 6) + 1
   const d2 = Math.floor(Math.random() * 6) + 1
   const result = calculateOutcome(d1, d2, gameState.turn.bonus, targetHex.heat)
