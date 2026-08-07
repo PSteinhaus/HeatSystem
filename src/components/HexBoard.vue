@@ -194,6 +194,15 @@ const figureLayout = computed(() => {
     if (n === 1) {
       group[0].x = cx
       group[0].y = cy
+    } else if (n === 2) {
+      const r = FIGURE_RADIUS * 0.65
+      const spacing = FIGURE_RADIUS * 1.2
+      const totalWidth = (n - 1) * spacing
+      group.forEach((fig, i) => {
+        fig.x = cx - totalWidth / 2 + i * spacing
+        fig.y = cy
+        fig.r = r
+      })
     } else {
       const r = FIGURE_RADIUS * 0.65
       const ringR = FIGURE_RADIUS * 0.8
@@ -291,7 +300,7 @@ onUnmounted(() => {
         <text
           v-if="gameState.hexes[hex.id]?.heat > 0"
           :x="hexToPixel(hex.q, hex.r).x"
-          :y="hexToPixel(hex.q, hex.r).y - HEX_SIZE * 0.15"
+          :y="hexToPixel(hex.q, hex.r).y - HEX_SIZE * 0.2"
           text-anchor="middle"
           class="heat-label"
         >{{ gameState.hexes[hex.id].heat }}</text>
@@ -299,7 +308,7 @@ onUnmounted(() => {
         <text
           v-if="gameState.hexes[hex.id]?.inscription"
           :x="hexToPixel(hex.q, hex.r).x"
-          :y="hexToPixel(hex.q, hex.r).y + HEX_SIZE * 0.05"
+          :y="hexToPixel(hex.q, hex.r).y + HEX_SIZE * 0.15"
           text-anchor="middle"
           class="hex-inscription"
         >{{ gameState.hexes[hex.id].inscription.length > 12 ? gameState.hexes[hex.id].inscription.slice(0, 11) + '…' : gameState.hexes[hex.id].inscription }}</text>
@@ -524,7 +533,7 @@ polygon.chain-hex {
 }
 .hex-inscription {
   fill: var(--text);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   pointer-events: none;
   user-select: none;
