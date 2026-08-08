@@ -107,6 +107,7 @@ watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
 })
 
 const endingTurn = ref(false)
+const lastShownTurn = ref<{ playerId: string; hopeGained: number; outcome: Outcome | null } | null>(null)
 
 // Watch for turn's lastTurn field to show hope animation to all players and clear UI
 watch(
@@ -115,8 +116,14 @@ watch(
     if (newLastTurn) {
       endingTurn.value = false
 
-      // Show hope animation to all players if hope was gained
-      if (newLastTurn.hopeGained > 0) {
+      // Only show hope animation if this is a new turn end (not a repeated state update)
+      const isNewTurn = !lastShownTurn.value ||
+        lastShownTurn.value.playerId !== newLastTurn.playerId ||
+        lastShownTurn.value.hopeGained !== newLastTurn.hopeGained ||
+        lastShownTurn.value.outcome !== newLastTurn.outcome
+
+      if (isNewTurn && newLastTurn.hopeGained > 0) {
+        lastShownTurn.value = newLastTurn
         showHopeGained.value = {
           amount: newLastTurn.hopeGained,
           outcome: newLastTurn.outcome ?? 'mixed',
@@ -133,6 +140,9 @@ watch(
         lastRoll.value = null
         showDice.value = false
       }, 4000)
+    } else {
+      // Clear the tracked turn when lastTurn is null
+      lastShownTurn.value = null
     }
   },
 )
