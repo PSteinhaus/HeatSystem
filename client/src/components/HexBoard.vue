@@ -41,6 +41,7 @@ const drag = reactive({
   startX: 0,
   startY: 0,
   hexId: null as HexId | null,
+  pointerId: null as number | null,
 })
 
 function screenToSvg(clientX: number, clientY: number): { x: number; y: number } {
@@ -68,6 +69,7 @@ function onFigurePointerDown(e: PointerEvent, playerId: string) {
   drag.active = true
   drag.playerId = playerId
   drag.hexId = player.position
+  drag.pointerId = e.pointerId
   const svgPt = screenToSvg(e.clientX, e.clientY)
   drag.x = svgPt.x
   drag.y = svgPt.y
@@ -77,14 +79,16 @@ function onFigurePointerDown(e: PointerEvent, playerId: string) {
 }
 
 function onPointerMove(e: PointerEvent) {
-  if (!drag.active) return
+  // Only update if this is the same pointer that initiated the drag
+  if (!drag.active || drag.pointerId !== e.pointerId) return
   const svgPt = screenToSvg(e.clientX, e.clientY)
   drag.x = svgPt.x
   drag.y = svgPt.y
 }
 
 function onPointerUp(e: PointerEvent) {
-  if (!drag.active) return
+  // Only handle if this is the same pointer that initiated the drag
+  if (!drag.active || drag.pointerId !== e.pointerId) return
   const svgPt = screenToSvg(e.clientX, e.clientY)
   const targetHex = findHexAtPoint(svgPt.x, svgPt.y)
   if (targetHex && drag.playerId) {
@@ -109,6 +113,17 @@ function onPointerUp(e: PointerEvent) {
   drag.active = false
   drag.playerId = null
   drag.hexId = null
+  drag.pointerId = null
+}
+
+function onPointerCancel(e: PointerEvent) {
+  // Clean up drag state if touch is interrupted
+  if (drag.active && drag.pointerId === e.pointerId) {
+    drag.active = false
+    drag.playerId = null
+    drag.hexId = null
+    drag.pointerId = null
+  }
 }
 
 function confirmRoll() {
@@ -349,10 +364,12 @@ const tintClass = computed(() => {
 onMounted(() => {
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointercancel', onPointerCancel)
 })
 onUnmounted(() => {
   window.removeEventListener('pointerup', onPointerUp)
   window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointercancel', onPointerCancel)
 })
 
 // Clear pending roll target when it's no longer my turn
@@ -626,6 +643,7 @@ polygon.chain-hex {
 .figure {
   cursor: grab;
   transition: filter 0.2s;
+  touch-action: none;
 }
 .figure.draggable {
   cursor: grab;
