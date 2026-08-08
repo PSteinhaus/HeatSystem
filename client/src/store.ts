@@ -8,7 +8,6 @@ import type {
   Outcome,
   MusicTrackId,
   RollResult,
-  TurnEndInfo,
 } from './types'
 
 // Server-side type with snake_case field names
@@ -23,7 +22,7 @@ import {
   type ServerMessage,
 } from './websocket'
 
-type ServerGameState = {
+export type ServerGameState = {
   status: GameState['status']
   hexes: GameState['hexes']
   hex_order: HexId[]

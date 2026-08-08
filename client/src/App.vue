@@ -16,7 +16,7 @@ import {
   showToast,
 } from './store'
 import { OUTCOME_LABELS, CRITICAL_LABELS } from './game/logic'
-import type { Outcome, TurnEndInfo } from './types'
+import type { Outcome } from './types'
 
 const showTurnModal = ref(false)
 const showNamePrompt = ref(false)

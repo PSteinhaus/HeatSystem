@@ -1,10 +1,12 @@
 import type {
-  GameState,
   MusicTrackId,
   Player,
   RollResult,
   Outcome,
 } from './types'
+import type {
+    ServerGameState
+} from './store'
 
 type ConnectionHandler = (connected: boolean) => void
 
@@ -79,7 +81,7 @@ export type ClientMessage =
 export type ServerMessage =
   | {
       type: 'state'
-      state: GameState
+      state: ServerGameState
     }
   | {
       type: 'joined'
@@ -146,14 +148,21 @@ export class GameWebSocket {
       return
     }
 
-    const protocol =
-      window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 
-    const url = `${protocol}//${window.location.host}/ws`
+    // 1. Get the base path (e.g., "/hex-oracle/" or "/hex-oracle/some/subpage")
+    const path = window.location.pathname
+
+    // 2. Extract the first path segment (e.g., "/hex-oracle")
+    const basePath = path.startsWith('/') ? '/' + path.split('/')[1] : ''
+
+    // 3. Assemble the full WebSocket URL
+    const url = `${protocol}//${window.location.host}${basePath}/api/ws`
+
     // FIXME: DEBUG
-    const WS_URL = 'ws://127.0.0.1:8000/api/ws'
+    //const WS_URL = 'ws://127.0.0.1:8004/api/ws'
 
-    const socket = new WebSocket(WS_URL)
+    const socket = new WebSocket(url)
 
     this.socket = socket
 
