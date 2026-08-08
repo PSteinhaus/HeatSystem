@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, onUnmounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import {
-  gameState, isMyTurn, myPlayer, setHeat, movePlayer, swapHexHeat,
-  rollForHex, hexList, playerList, setInscription,
+  gameState,
+  isMyTurn,
+  myPlayer,
+  setHeat,
+  movePlayer,
+  swapHexHeat,
+  rollForHex,
+  hexList,
+  playerList,
+  setInscription,
 } from '../store'
 import {
   HEX_SIZE, hexToPixel, hexCorners, areNeighbors,
@@ -104,10 +112,14 @@ function onPointerUp(e: PointerEvent) {
 }
 
 function confirmRoll() {
-  if (pendingRollTarget.value) {
-    rollForHex(pendingRollTarget.value)
-    pendingRollTarget.value = null
-    emit('end-extend')
+  const target = pendingRollTarget.value
+  if (target) {
+    const sent = rollForHex(target)
+
+    if (!sent) { return }
+
+     pendingRollTarget.value = null
+     emit('end-extend')
   }
 }
 
@@ -341,6 +353,13 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('pointerup', onPointerUp)
   window.removeEventListener('pointermove', onPointerMove)
+})
+
+// Clear pending roll target when it's no longer my turn
+watch(() => isMyTurn.value, (isMyTurnNow) => {
+  if (!isMyTurnNow) {
+    pendingRollTarget.value = null
+  }
 })
 </script>
 

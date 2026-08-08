@@ -13,16 +13,22 @@ pub struct Hex {
     pub inscription: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Player {
+    /// The player's stable identity within the game.
+    ///
+    /// For now this is the player's name. This deliberately allows
+    /// a player to reconnect from another device by entering the
+    /// same name again.
     pub id: PlayerId,
+
     pub name: String,
     pub hope: i32,
     pub color: String,
     pub position: Option<HexId>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Success,
@@ -30,7 +36,7 @@ pub enum Outcome {
     Failure,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CriticalType {
     CriticalSuccess,
@@ -38,7 +44,7 @@ pub enum CriticalType {
     Upgrade,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollResult {
     pub d1: u8,
     pub d2: u8,
@@ -50,7 +56,7 @@ pub struct RollResult {
     pub critical: Option<CriticalType>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnPhase {
     Idle,
@@ -68,7 +74,7 @@ pub struct TurnState {
     pub heat_snapshot: HashMap<HexId, i32>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GameStatus {
     Setup,
@@ -76,7 +82,7 @@ pub enum GameStatus {
     Ended,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MusicTrackId {
     None,

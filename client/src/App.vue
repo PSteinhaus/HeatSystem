@@ -8,7 +8,14 @@ import TurnModal from './components/TurnModal.vue'
 import DiceRoller from './components/DiceRoller.vue'
 import MusicPlayer from './components/MusicPlayer.vue'
 import ToastHost from './components/ToastHost.vue'
-import { gameState, me, isMyTurn, endTurn, showToast } from './store'
+import {
+  gameState,
+  me,
+  isMyTurn,
+  endTurn,
+  showToast,
+  lastTurnEnd,
+} from './store'
 import { OUTCOME_LABELS, CRITICAL_LABELS } from './game/logic'
 import type { Outcome } from './types'
 
@@ -54,6 +61,15 @@ watch(() => gameState.status, (status) => {
   }
 })
 
+// Clear dice overlay immediately when turn phase changes away from active
+watch(() => gameState.turn.phase, (phase) => {
+  if (phase !== 'active') {
+    showDice.value = false
+    lastRoll.value = null
+    outcomeTint.value = null
+  }
+})
+
 // Watch for new rolls in the turn
 watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
   if (newLen > (oldLen ?? 0)) {
@@ -91,26 +107,41 @@ watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
   }
 })
 
-// Watch for turn ending (phase goes back to idle) to handle manual end
-watch(() => gameState.turn.phase, (phase, oldPhase) => {
-  if (oldPhase === 'active' && phase === 'idle') {
-    // Turn ended — if not already handled by auto-end, show hope gained
-    // This handles the case where the active player ended manually
-    // The hope was already added in endTurn()
-  }
-})
+const endingTurn = ref(false)
 
-function onEndTurn() {
-  const result = endTurn()
-  if (result) {
-    showHopeGained.value = { amount: result.hopeGained, outcome: result.outcome ?? 'mixed' }
-    setTimeout(() => { showHopeGained.value = null }, 3000)
-    window.setTimeout(() => {
+watch(
+  () => lastTurnEnd.value,
+  (newValue) => {
+    endingTurn.value = false
+
+    if (!newValue?.playerId) return
+
+    // The turn-ended animation belongs to the player
+    // whose turn has just ended.
+    if (newValue.playerId !== me.id) return
+
+    showHopeGained.value = {
+      amount: newValue.hopeGained,
+      outcome: newValue.outcome ?? 'mixed',
+    }
+
+    setTimeout(() => {
+      showHopeGained.value = null
+    }, 3000)
+
+    setTimeout(() => {
       outcomeTint.value = null
       lastRoll.value = null
       showDice.value = false
     }, 4000)
-  }
+  },
+)
+
+function onEndTurn() {
+  if (endingTurn.value) return
+
+  endingTurn.value = true
+  endTurn()
 }
 
 function closeNamePrompt() {
@@ -162,7 +193,13 @@ function closeNamePrompt() {
           <!-- End turn button (only for active player, shown for all outcomes) -->
           <div v-if="isMyTurn && lastRoll" class="end-turn-bar">
             <div class="end-turn-btns">
-              <button class="primary end-turn-btn" @click="onEndTurn">Zug beenden</button>
+              <button
+                class="primary end-turn-btn"
+                :disabled="endingTurn"
+                @click="onEndTurn"
+              >
+                {{ endingTurn ? 'Zug wird beendet …' : 'Zug beenden' }}
+              </button>
               <button v-if="lastRoll.outcome !== 'failure'" class="secondary extend-btn" @click="startExtendMode">Zug erweitern</button>
             </div>
             <p v-if="lastRoll.outcome !== 'failure' && !extendMode" class="end-turn-hint">Oder bewege deine Figur auf ein Nachbarfeld um weiterzuwürfeln</p>
