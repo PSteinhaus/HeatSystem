@@ -19,12 +19,11 @@ use crate::game::{
 use crate::models::{
     GameState,
     GameStatus,
-    HexId,
     MusicTrackId,
     Outcome,
     Player,
-    PlayerId,
     RollResult,
+    TurnEndInfo,
     TurnPhase,
     TurnState,
 };
@@ -334,6 +333,8 @@ impl GameServer {
             final_outcome: None,
 
             heat_snapshot,
+
+            last_turn: None,
         };
 
         drop(state);
@@ -531,7 +532,20 @@ impl GameServer {
             outcome: last_outcome,
         };
 
-        state.turn = idle_turn();
+        state.turn = TurnState {
+            phase: TurnPhase::Idle,
+            active_player_id: None,
+            bonus: 0,
+            chain: Vec::new(),
+            rolls: Vec::new(),
+            final_outcome: None,
+            heat_snapshot: HashMap::new(),
+            last_turn: Some(TurnEndInfo {
+                player_id: player_id.to_string(),
+                hope_gained,
+                outcome: last_outcome,
+            }),
+        };
 
         drop(state);
 
@@ -775,6 +789,7 @@ fn idle_turn() -> TurnState {
         rolls: Vec::new(),
         final_outcome: None,
         heat_snapshot: HashMap::new(),
+        last_turn: None,
     }
 }
 

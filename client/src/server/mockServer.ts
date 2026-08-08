@@ -26,6 +26,7 @@ function defaultState(): GameState {
       rolls: [],
       finalOutcome: null,
       heatSnapshot: {},
+      lastTurn: null,
     },
     musicTrack: 'none',
   }

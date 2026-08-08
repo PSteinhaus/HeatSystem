@@ -91,6 +91,7 @@ export type ServerMessage =
     }
   | {
       type: 'turn_ended'
+      player_id: string
       hope_gained: number
       outcome: Outcome | null
     }

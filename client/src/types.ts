@@ -42,6 +42,16 @@ export interface RollResult {
 /** Turn phases for multiplayer synchronization */
 export type TurnPhase = 'idle' | 'active'
 
+/** Information about the last completed turn */
+export interface TurnEndInfo {
+  /** ID of the player who just ended their turn */
+  playerId: string
+  /** Amount of hope gained by that player */
+  hopeGained: number
+  /** Outcome of the turn */
+  outcome: Outcome | null
+}
+
 /** Complete turn state - synchronized across all players */
 export interface TurnState {
   /** Current phase: 'idle' when no turn is active, 'active' when a player is taking their turn */
@@ -58,6 +68,8 @@ export interface TurnState {
   finalOutcome: Outcome | null
   /** Snapshot of heat values at the start of the turn for hope calculation */
   heatSnapshot: Record<HexId, number>
+  /** Information about the last completed turn, present when phase is 'idle' */
+  lastTurn: TurnEndInfo | null
 }
 
 export type MusicTrackId = 'none' | 'ambient' | 'forest' | 'mystic'

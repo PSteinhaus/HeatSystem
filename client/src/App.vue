@@ -14,10 +14,9 @@ import {
   isMyTurn,
   endTurn,
   showToast,
-  lastTurnEnd,
 } from './store'
 import { OUTCOME_LABELS, CRITICAL_LABELS } from './game/logic'
-import type { Outcome } from './types'
+import type { Outcome, TurnEndInfo } from './types'
 
 const showTurnModal = ref(false)
 const showNamePrompt = ref(false)
@@ -109,31 +108,32 @@ watch(() => gameState.turn.rolls.length, (newLen, oldLen) => {
 
 const endingTurn = ref(false)
 
+// Watch for turn's lastTurn field to show hope animation to all players and clear UI
 watch(
-  () => lastTurnEnd.value,
-  (newValue) => {
-    endingTurn.value = false
+  () => gameState.turn.lastTurn,
+  (newLastTurn) => {
+    if (newLastTurn) {
+      endingTurn.value = false
 
-    if (!newValue?.playerId) return
+      // Show hope animation to all players if hope was gained
+      if (newLastTurn.hopeGained > 0) {
+        showHopeGained.value = {
+          amount: newLastTurn.hopeGained,
+          outcome: newLastTurn.outcome ?? 'mixed',
+        }
 
-    // The turn-ended animation belongs to the player
-    // whose turn has just ended.
-    if (newValue.playerId !== me.id) return
+        setTimeout(() => {
+          showHopeGained.value = null
+        }, 3000)
+      }
 
-    showHopeGained.value = {
-      amount: newValue.hopeGained,
-      outcome: newValue.outcome ?? 'mixed',
+      // Clear dice overlay after a delay
+      setTimeout(() => {
+        outcomeTint.value = null
+        lastRoll.value = null
+        showDice.value = false
+      }, 4000)
     }
-
-    setTimeout(() => {
-      showHopeGained.value = null
-    }, 3000)
-
-    setTimeout(() => {
-      outcomeTint.value = null
-      lastRoll.value = null
-      showDice.value = false
-    }, 4000)
   },
 )
 

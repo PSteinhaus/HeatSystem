@@ -248,6 +248,7 @@ pub fn default_game_state() -> GameState {
             rolls: Vec::new(),
             final_outcome: None,
             heat_snapshot: HashMap::new(),
+            last_turn: None,
         },
 
         music_track: MusicTrackId::None,

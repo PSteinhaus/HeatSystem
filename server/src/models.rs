@@ -5,6 +5,13 @@ pub type HexId = String;
 pub type PlayerId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnEndInfo {
+    pub player_id: PlayerId,
+    pub hope_gained: i32,
+    pub outcome: Option<Outcome>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Hex {
     pub id: HexId,
     pub q: i32,
@@ -72,6 +79,7 @@ pub struct TurnState {
     pub rolls: Vec<RollResult>,
     pub final_outcome: Option<Outcome>,
     pub heat_snapshot: HashMap<HexId, i32>,
+    pub last_turn: Option<TurnEndInfo>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

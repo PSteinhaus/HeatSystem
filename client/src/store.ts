@@ -8,7 +8,15 @@ import type {
   Outcome,
   MusicTrackId,
   RollResult,
+  TurnEndInfo,
 } from './types'
+
+// Server-side type with snake_case field names
+type ServerTurnEndInfo = {
+  player_id: string
+  hope_gained: number
+  outcome: Outcome | null
+}
 
 import {
   gameSocket,
@@ -28,6 +36,7 @@ type ServerGameState = {
     rolls: RollResult[]
     final_outcome: Outcome | null
     heat_snapshot: Record<HexId, number>
+    last_turn: ServerTurnEndInfo | null
   }
   music_track: GameState['musicTrack']
 }
@@ -48,6 +57,7 @@ export const gameState = reactive<GameState>({
     rolls: [],
     finalOutcome: null,
     heatSnapshot: {},
+    lastTurn: null,
   },
 
   musicTrack: 'none',
@@ -61,11 +71,7 @@ export const me = reactive<{
 
 export const lastRollResult = ref<RollResult | null>(null)
 
-export const lastTurnEnd = ref<{
-  hopeGained: number
-  outcome: Outcome | null
-  playerId: string | null
-} | null>(null)
+
 
 export const toasts = reactive<ToastMsg[]>([])
 
@@ -214,6 +220,12 @@ function syncState(
     heatSnapshot: {
       ...source.turn.heat_snapshot,
     },
+
+    lastTurn: source.turn.last_turn ? {
+      playerId: source.turn.last_turn.player_id,
+      hopeGained: source.turn.last_turn.hope_gained,
+      outcome: source.turn.last_turn.outcome,
+    } : null,
   }
 
   target.musicTrack =
@@ -248,13 +260,7 @@ function handleServerMessage(
       lastRollResult.value = message.result
       break
 
-    case 'turn_ended':
-      lastTurnEnd.value = {
-        hopeGained: message.hope_gained,
-        outcome: message.outcome,
-        playerId: gameState.turn.activePlayerId,
-      }
-      break
+
 
     case 'error':
       showToast(

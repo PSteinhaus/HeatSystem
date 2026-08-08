@@ -10,7 +10,7 @@ use crate::models::{
     Player,
     RollResult,
 };
-use crate::state::{EndTurnResult, GameError, GameServer};
+use crate::state::{GameError, GameServer};
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -96,6 +96,7 @@ pub enum ServerMessage {
     },
 
     TurnEnded {
+        player_id: String,
         hope_gained: i32,
         outcome: Option<crate::models::Outcome>,
     },
@@ -349,6 +350,7 @@ pub fn websocket(
                                         send_message(
                                             &mut stream,
                                             &ServerMessage::TurnEnded {
+                                                player_id: player_id.clone(),
                                                 hope_gained:
                                                     result.hope_gained,
                                                 outcome:
